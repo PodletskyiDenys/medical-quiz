@@ -1,0 +1,66 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { LastResult, Store, TestResultEntry } from '../types/questions';
+import { emptyTopicProgress, loadStore, saveStore } from '../utils/storage';
+
+interface ProgressApi {
+  store: Store;
+  setLastVisited: (topicId: string) => void;
+  setCurrentQuestion: (topicId: string, index: number) => void;
+  markCompleted: (topicId: string, questionId: string) => void;
+  recordAnswer: (topicId: string, questionId: string, knew: boolean) => void;
+  finishTest: (topicId: string, total: number, correct: number, wrongIds: string[], percent: number) => void;
+}
+
+const Ctx = createContext<ProgressApi | null>(null);
+
+export function ProgressProvider({ children }: { children: ReactNode }) {
+  const [store, setStore] = useState<Store>(loadStore);
+
+  useEffect(() => saveStore(store), [store]);
+
+  const update = useCallback((topicId: string, fn: (p: ReturnType<typeof emptyTopicProgress>) => ReturnType<typeof emptyTopicProgress>) => {
+    setStore((s) => ({ ...s, topics: { ...s.topics, [topicId]: fn(s.topics[topicId] ?? emptyTopicProgress()) } }));
+  }, []);
+
+  const api = useMemo<ProgressApi>(
+    () => ({
+      store,
+      setLastVisited: (topicId) =>
+        setStore((s) => (s.lastVisited?.topicId === topicId ? s : { ...s, lastVisited: { topicId } })),
+      setCurrentQuestion: (topicId, index) => update(topicId, (p) => (p.currentQuestion === index ? p : { ...p, currentQuestion: index })),
+      markCompleted: (topicId, qid) =>
+        update(topicId, (p) => (p.completed.includes(qid) ? p : { ...p, completed: [...p.completed, qid] })),
+      recordAnswer: (topicId, qid, knew) =>
+        update(topicId, (p) => ({
+          ...p,
+          completed: p.completed.includes(qid) ? p.completed : [...p.completed, qid],
+          incorrectQuestions: knew
+            ? p.incorrectQuestions.filter((x) => x !== qid)
+            : p.incorrectQuestions.includes(qid)
+              ? p.incorrectQuestions
+              : [...p.incorrectQuestions, qid],
+        })),
+      finishTest: (topicId, total, correct, wrongIds, percent) => {
+        const entry: TestResultEntry = { date: new Date().toISOString(), total, correct, percent };
+        const last: LastResult = { topicId, total, correct, wrongIds };
+        setStore((s) => {
+          const p = s.topics[topicId] ?? emptyTopicProgress();
+          return {
+            ...s,
+            lastResult: last,
+            topics: { ...s.topics, [topicId]: { ...p, testHistory: [...p.testHistory, entry] } },
+          };
+        });
+      },
+    }),
+    [store, update],
+  );
+
+  return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
+}
+
+export function useProgress(): ProgressApi {
+  const v = useContext(Ctx);
+  if (!v) throw new Error('useProgress must be used within ProgressProvider');
+  return v;
+}

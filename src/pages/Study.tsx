@@ -1,0 +1,74 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link, Navigate, useParams } from 'react-router-dom';
+import { useQuestions } from '../hooks/useQuestions';
+import { useProgress } from '../hooks/useProgress';
+import { getTopicProgress } from '../utils/storage';
+import Flashcard from '../components/Flashcard';
+import ProgressBar from '../components/ProgressBar';
+
+export default function Study() {
+  const { topicId } = useParams();
+  const q = useQuestions();
+  const { store, setLastVisited, setCurrentQuestion, markCompleted } = useProgress();
+  const topic = q.status === 'ready' ? q.data.topics.find((t) => t.id === topicId) : undefined;
+  const total = topic?.questions.length ?? 0;
+
+  // Resume: стартуємо з останньої збереженої картки
+  const [index, setIndex] = useState(() => {
+    if (!topicId) return 0;
+    return getTopicProgress(store, topicId).currentQuestion;
+  });
+  const [flipped, setFlipped] = useState(false);
+  const safe = Math.max(0, Math.min(index, Math.max(total - 1, 0)));
+
+  useEffect(() => {
+    if (topic) { setLastVisited(topic.id); setCurrentQuestion(topic.id, safe); }
+  }, [topic, safe, setLastVisited, setCurrentQuestion]);
+
+  const go = useCallback((i: number) => {
+    if (!total) return;
+    setIndex(Math.max(0, Math.min(i, total - 1)));
+    setFlipped(false);
+  }, [total]);
+
+  const flip = useCallback(() => {
+    setFlipped((f) => {
+      if (!f && topic) markCompleted(topic.id, topic.questions[safe].id);
+      return !f;
+    });
+  }, [topic, safe, markCompleted]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') go(safe + 1);
+      else if (e.key === 'ArrowLeft') go(safe - 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [go, safe]);
+
+  if (q.status !== 'ready') return null;
+  if (!topic) return <Navigate to="/topics" replace />;
+
+  const question = topic.questions[safe];
+  const done = getTopicProgress(store, topic.id).completed.length;
+
+  return (
+    <div className="space-y-4">
+      <Link to={`/topic/${topic.id}`} className="text-sm font-medium text-brand-700">← {topic.name}</Link>
+      <div className="text-center">
+        <p className="text-lg font-semibold" aria-live="polite">{safe + 1} / {total}</p>
+        <p className="text-xs text-slate-500">Переглянуто відповідей: {done} з {total}</p>
+      </div>
+      <ProgressBar value={((safe + 1) / total) * 100} label="Позиція в темі" />
+
+      <Flashcard key={question.id} question={question} flipped={flipped} onFlip={flip} onPrev={() => go(safe - 1)} onNext={() => go(safe + 1)} />
+
+      <div className="grid grid-cols-2 gap-3">
+        <button type="button" className="btn-secondary" disabled={safe === 0} onClick={() => go(safe - 1)} aria-label="Попереднє питання">← Назад</button>
+        <button type="button" className="btn-primary" disabled={safe >= total - 1} onClick={() => go(safe + 1)} aria-label="Наступне питання">Далі →</button>
+      </div>
+      <p className="hidden text-center text-xs text-slate-400 sm:block">Клавіші: ← → навігація, Пробіл/Enter — перевернути</p>
+    </div>
+  );
+}
