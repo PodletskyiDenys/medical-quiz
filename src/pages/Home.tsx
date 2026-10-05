@@ -15,24 +15,26 @@ export default function Home() {
   const lastIdx = last ? Math.min(getTopicProgress(store, last.id).currentQuestion, last.questions.length - 1) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:space-y-8">
       <div>
-        <h1 className="text-2xl font-bold sm:text-3xl">Medical Quiz</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl lg:text-4xl">Medical Quiz</h1>
         <p className="mt-1 text-slate-600">{topics.length} тем · {total} питань</p>
       </div>
 
       {last && (
-        <section aria-labelledby="resume" className="rounded-2xl bg-brand-500 p-5 text-white shadow-md">
+        <section aria-labelledby="resume" className="rounded-2xl bg-brand-500 p-5 text-white shadow-md sm:p-6 lg:flex lg:items-center lg:justify-between lg:gap-8 lg:p-8">
+          <div className="min-w-0">
           <h2 id="resume" className="text-sm font-semibold uppercase tracking-wider text-brand-100">Продовжити навчання</h2>
           <p className="mt-2 text-lg font-semibold leading-snug break-words">{last.name}</p>
           <p className="text-brand-100">Питання {lastIdx + 1} / {last.questions.length}</p>
-          <Link to={`/topic/${last.id}/study`} className="btn mt-4 w-full bg-white text-brand-700 hover:bg-brand-50 sm:w-auto">Продовжити</Link>
+          </div>
+          <Link to={`/topic/${last.id}/study`} className="btn mt-4 w-full shrink-0 bg-white text-brand-700 hover:bg-brand-50 sm:w-auto lg:mt-0 lg:px-10">Продовжити</Link>
         </section>
       )}
 
       <section aria-labelledby="topics-h">
         <h2 id="topics-h" className="mb-3 text-xl font-bold">Теми</h2>
-        <div className="space-y-3">{topics.map((t) => <TopicCard key={t.id} topic={t} />)}</div>
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">{topics.map((t) => <TopicCard key={t.id} topic={t} />)}</div>
       </section>
     </div>
   );

@@ -14,12 +14,14 @@ export default function Results() {
   const r = store.lastResult;
   if (!topic || !r || r.topicId !== topic.id) return <Navigate to={topic ? `/topic/${topic.id}` : '/topics'} replace />;
 
+  const kind = r.kind ?? 'choice';
+  const repeatCount = [10, 20, 30].includes(r.total) ? r.total : 'all';
   const percent = percentOf(r.correct, r.total);
   const wrong = r.total - r.correct;
   const s = topicStats(getTopicProgress(store, topic.id), topic.questions.length);
 
   return (
-    <div className="space-y-5 text-center">
+    <div className="mx-auto max-w-xl space-y-5 text-center">
       <h1 className="text-2xl font-bold">Тест завершено</h1>
       <section className="card" aria-label="Результат">
         <p className="text-5xl font-bold text-brand-700">{r.correct} / {r.total}</p>
@@ -37,8 +39,8 @@ export default function Results() {
       )}
 
       <div className="grid gap-3">
-        <Link to={`/topic/${topic.id}/quiz?count=${r.total}&r=${Date.now()}`} className="btn-primary">Повторити тест</Link>
-        {wrong > 0 && <Link to={`/topic/${topic.id}/quiz?mode=last&r=${Date.now()}`} className="btn-secondary">Повторити помилки</Link>}
+        <Link to={`/topic/${topic.id}/quiz?count=${repeatCount}&type=${kind}&r=${Date.now()}`} className="btn-primary">Повторити тест</Link>
+        {wrong > 0 && <Link to={`/topic/${topic.id}/quiz?mode=last&type=${kind}&r=${Date.now()}`} className="btn-secondary">Повторити помилки</Link>}
         <Link to={`/topic/${topic.id}/study`} className="btn-secondary">Вчити картки</Link>
         <Link to="/topics" className="btn-secondary">До тем</Link>
       </div>
